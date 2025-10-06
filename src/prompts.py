@@ -121,3 +121,82 @@ For each platform, provide:
 Keep captions succinct, benefit-driven, and aligned with the platform culture.
 Maintain an overall tone of "{tone}" consistently.
 """
+
+
+def caption_options_prompt(state: Mapping[str, object]) -> str:
+    # Prefer new `tone`; fall back to legacy `brand_voice` if present
+    raw_tone = (state.get("tone") or state.get("brand_voice") or "").strip()  # type: ignore[arg-type]
+    tone = raw_tone.title() if isinstance(raw_tone, str) else ""
+    if tone not in ALLOWED_TONES:
+        tone = "Friendly"
+    primary_language = state.get("primary_language", "English")
+    product_name = state.get("product_name", "")
+    benefits: Sequence[str] = state.get("product_benefits", []) or []
+    script = state.get("final_script", "")
+    num_options = int(state.get("num_caption_options", 3) or 3)
+    if num_options < 2:
+        num_options = 2
+    if num_options > 6:
+        num_options = 6
+
+    benefits_inline = ", ".join([b for b in benefits if b])
+
+    return f"""
+You are an expert social copywriter.
+Propose {num_options} distinct caption options in {primary_language} for the content below.
+
+Product: {product_name}
+Key benefits: {benefits_inline}
+
+Script context:
+{script}
+
+Constraints:
+- 1–2 lines each, strong hook and clear CTA.
+- Vary style within the same overall tone "{tone}".
+- Avoid emojis unless they truly add clarity.
+
+Output STRICTLY as compact JSON array of strings. Example:
+["Option 1", "Option 2", "Option 3"]
+"""
+
+
+def hashtags_from_caption_prompt(state: Mapping[str, object]) -> str:
+    # Prefer new `tone`; fall back to legacy `brand_voice` if present
+    raw_tone = (state.get("tone") or state.get("brand_voice") or "").strip()  # type: ignore[arg-type]
+    tone = raw_tone.title() if isinstance(raw_tone, str) else ""
+    if tone not in ALLOWED_TONES:
+        tone = "Friendly"
+    primary_language = state.get("primary_language", "English")
+    platforms: Sequence[str] = state.get("platforms", []) or []
+    platforms_str = ", ".join(platforms) if platforms else "Generic Social"
+    product_name = state.get("product_name", "")
+    selected_caption = state.get("selected_caption", "")
+    script = state.get("final_script", "")
+    max_tags = int(state.get("max_hashtags", 10) or 10)
+    if max_tags < 3:
+        max_tags = 3
+    if max_tags > 15:
+        max_tags = 15
+
+    return f"""
+You are a social media strategist. Generate a concise set of hashtags in {primary_language}.
+
+Platforms: {platforms_str}
+Product: {product_name}
+Tone: {tone}
+
+Chosen Caption:
+{selected_caption}
+
+Script context:
+{script}
+
+Instructions:
+- Return between {max_tags-2} and {max_tags} hashtags.
+- High-intent, relevant; avoid banned terms.
+- Mix broad + niche; prefer camelCase where helpful.
+- Exclude the leading # symbols in output.
+
+Output STRICTLY as a compact JSON array of strings, e.g. ["tagOne", "tagTwo", "tagThree"].
+"""

@@ -4,10 +4,55 @@
 		{
 			"label": "Run Python unit tests",
 			"type": "shell",
-			"command": "python -m unittest discover -s tests -p \"test_*.py\"",
+			"command": "python",
+			"args": [
+				"-m",
+				"unittest",
+				"discover",
+				"-s",
+				"tests",
+				"-p",
+				"test_*.py"
+			],
 			"isBackground": false,
 			"problemMatcher": [
-				"$pytest"
+				"$python"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Run Streamlit smoke check",
+			"type": "shell",
+			"command": "python",
+			"args": [
+				"-c",
+				"import importlib; modules=['streamlit','requests']; [importlib.import_module(m) for m in modules]; print('Imports OK'); import app as app_module; print('App imports OK')"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Run Python unit tests",
+			"type": "shell",
+			"command": "python",
+			"args": [
+				"-m",
+				"unittest",
+				"discover",
+				"-s",
+				"tests",
+				"-p",
+				"test_*.py"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Run Streamlit smoke check",
+			"type": "shell",
+			"command": "python",
+			"args": [
+				"-c",
+				"import importlib; modules=['streamlit','requests']; [importlib.import_module(m) for m in modules]; print('Imports OK'); import app as app_module; print('App imports OK')"
 			],
 			"group": "build"
 		}
