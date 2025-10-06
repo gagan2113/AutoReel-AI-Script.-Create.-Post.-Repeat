@@ -1,0 +1,123 @@
+from typing import Mapping, Sequence
+
+ALLOWED_TONES: Sequence[str] = (
+    "Friendly",
+    "Professional",
+    "Inspirational",
+    "Humorous",
+    "Serious",
+    "Casual",
+)
+
+
+def outline_prompt(state: Mapping[str, object]) -> str:
+    product_name = state.get("product_name", "")
+    product_description = state.get("product_description", "")
+    product_benefits: Sequence[str] = state.get("product_benefits", []) or []
+    # Prefer new `tone`; fall back to legacy `brand_voice` if present
+    raw_tone = (state.get("tone") or state.get("brand_voice") or "").strip()  # type: ignore[arg-type]
+    tone = raw_tone.title() if isinstance(raw_tone, str) else ""
+    if tone not in ALLOWED_TONES:
+        tone = "Friendly"
+    primary_language = state.get("primary_language", "English")
+    duration_seconds = state.get("duration_seconds", 60)
+    platforms: Sequence[str] = state.get("platforms", []) or []
+    aspect_ratios: Sequence[str] = state.get("aspect_ratios_alts", []) or []
+    image_analysis = state.get("product_image_analysis", "")
+
+    benefits_str = "\n- ".join([b for b in product_benefits if b])
+    platforms_str = ", ".join(platforms) if platforms else "Generic Social"
+    ratios_str = ", ".join(aspect_ratios) if aspect_ratios else "Any"
+
+    return f"""
+You are a senior social media creative director.
+Create a detailed outline for a {duration_seconds}-second product video script in {primary_language}.
+
+Product: {product_name}
+Description: {product_description}
+Benefits:
+- {benefits_str if benefits_str else 'N/A'}
+Tone: {tone}
+Target platforms: {platforms_str}
+Preferred aspect ratios: {ratios_str}
+Optional image analysis (if provided): {image_analysis if image_analysis else 'N/A'}
+
+Provide a structured outline with:
+1) Scroll-stopping hook (first 3-5 seconds)
+2) Demonstration or value points mapping to the benefits
+3) Social proof or objection handling
+4) Clear CTA adapted to the platforms
+
+Notes:
+- Tailor the pacing to {duration_seconds}s.
+- If image analysis is present, weave visual references into the hook.
+- Tone: {tone} (Allowed: {", ".join(ALLOWED_TONES)})
+- Keep language aligned with the selected tone throughout.
+"""
+
+
+def script_prompt(state: Mapping[str, object]) -> str:
+    product_name = state.get("product_name", "")
+    # Prefer new `tone`; fall back to legacy `brand_voice` if present
+    raw_tone = (state.get("tone") or state.get("brand_voice") or "").strip()  # type: ignore[arg-type]
+    tone = raw_tone.title() if isinstance(raw_tone, str) else ""
+    if tone not in ALLOWED_TONES:
+        tone = "Friendly"
+    primary_language = state.get("primary_language", "English")
+    duration_seconds = state.get("duration_seconds", 60)
+    platforms: Sequence[str] = state.get("platforms", []) or []
+    platforms_str = ", ".join(platforms) if platforms else "Generic Social"
+    outline = state.get("script_outline", "")
+
+    return f"""
+Based on this outline, write a complete on-camera product script in {primary_language}.
+
+Outline:
+{outline}
+
+Constraints:
+- Total speaking duration ≈ {duration_seconds} seconds at a natural pace.
+- Tone: {tone} (Allowed: {", ".join(ALLOWED_TONES)})
+- Target platforms: {platforms_str}
+
+Instructions:
+- Make it punchy and practical, optimized for short-form attention.
+- Include natural pause markers like (beat) where helpful.
+- Use inclusive, clear language. Avoid filler.
+- Do not include stage directions beyond brief parentheticals.
+"""
+
+
+def hashtags_prompt(state: Mapping[str, object]) -> str:
+    # Prefer new `tone`; fall back to legacy `brand_voice` if present
+    raw_tone = (state.get("tone") or state.get("brand_voice") or "").strip()  # type: ignore[arg-type]
+    tone = raw_tone.title() if isinstance(raw_tone, str) else ""
+    if tone not in ALLOWED_TONES:
+        tone = "Friendly"
+    primary_language = state.get("primary_language", "English")
+    platforms: Sequence[str] = state.get("platforms", []) or []
+    platforms_str = ", ".join(platforms) if platforms else "Generic Social"
+    product_name = state.get("product_name", "")
+    benefits: Sequence[str] = state.get("product_benefits", []) or []
+    script = state.get("final_script", "")
+
+    benefits_inline = ", ".join([b for b in benefits if b])
+
+    return f"""
+You are a social media strategist. Create platform-ready captions and hashtags in {primary_language}.
+
+Target platforms: {platforms_str}
+Product: {product_name}
+Key benefits: {benefits_inline}
+
+Script context:
+{script}
+
+Output format:
+For each platform, provide:
+- Caption (1–2 lines, with a strong CTA)
+- 8–10 relevant, high-intent hashtags (avoid banned terms, mix broad + niche)
+
+Keep captions succinct, benefit-driven, and aligned with the platform culture.
+Maintain an overall tone of "{tone}" consistently.
+"""
