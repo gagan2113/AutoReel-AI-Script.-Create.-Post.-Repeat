@@ -35,6 +35,7 @@ After a video is generated, the app asks: "Do you want to upload this video?" If
   * Captions & Hashtags: Per-platform, 8–10 relevant tags
 
 * **Streamlit UI**: User-friendly interface to input content details and view generated output.
+* **Reel History Page**: Dedicated page under the sidebar (Reel History) to browse, preview, and save reels. Supports saving remote URLs or downloading a local copy to `reels/…` and storing a lightweight record in MongoDB.
 * **Explicit Confirmation Flow**: After script generation, the app asks: "Can I proceed to create the video?" You can confirm to generate the video or regenerate the script.
 * **Post-Video Upload Flow**: After video creation, the app asks: "Do you want to upload this video?" Provide caption and hashtags, choose platforms, and upload.
 * **Pluggable Video API Module**: All video logic lives in `src/video_api.py` so you can swap providers without touching the main app.
@@ -146,6 +147,8 @@ streamlit run app.py
 ```
 
 Open your browser at `http://localhost:8501` to access the UI.
+
+In the sidebar, click "Reel History" to open the history page.
 
 ---
 

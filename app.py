@@ -2,6 +2,7 @@ import streamlit as st
 from src.workflow import generate_script, generate_caption_options, generate_hashtags_for_caption
 from src.video_api import generate_video, extract_final_script
 from src.uploaders import upload_to_platforms, SUPPORTED_PLATFORMS
+from src.history import list_reels, save_reel_record, create_versioned_folder_and_download
 
 # --- Streamlit UI ---
 st.set_page_config(page_title="AutoReel AI", page_icon="📝")
@@ -11,6 +12,23 @@ st.write("Automatically writes scripts, generates videos, and posts them on soci
 # Keep the current script across interactions
 if "script_md" not in st.session_state:
     st.session_state["script_md"] = ""
+if "latest_video_url" not in st.session_state:
+    st.session_state["latest_video_url"] = None
+if "latest_title" not in st.session_state:
+    st.session_state["latest_title"] = None
+
+"""
+Sidebar: lightweight navigation to Reel History page
+"""
+with st.sidebar:
+    st.header("📜 Reel History")
+    try:
+        # Streamlit >= 1.30
+        st.page_link("pages/1_Reel_History.py", label="Open Reel History", icon="📜")
+    except Exception:
+        # Fallback: Multipage apps automatically show the page in the sidebar.
+        st.caption("Use the sidebar pages list to open Reel History.")
+    st.caption("Browse, preview, and manage reels on the history page.")
 
 
 with st.form("product_script_form"):
@@ -190,70 +208,9 @@ if st.session_state.get("script_md"):
                 st.video(video_url)
                 st.write(f"Job ID: {job_id}")
                 st.write(f"Direct link: {video_url}")
-                # Ask for upload confirmation
-                st.markdown("---")
-                st.subheader("Upload Confirmation")
-                st.info("Do you want to upload this video?")
-
-                # Upload inputs
-                upload_platforms_default = [p for p in platforms if p in SUPPORTED_PLATFORMS] or SUPPORTED_PLATFORMS
-                chosen_upload_platforms = st.multiselect(
-                    "Select platforms to upload",
-                    SUPPORTED_PLATFORMS,
-                    default=upload_platforms_default,
-                )
-                # Use selected caption and auto-generate hashtags suggestions
-                default_caption = st.session_state.get("selected_caption") or f"{product_name} — watch now!"
-                caption_input = st.text_area(
-                    "Caption",
-                    value=default_caption,
-                    help="Choose from options above or edit manually.",
-                    height=80,
-                )
-                # Suggest hashtags based on current caption and chosen platforms; cache to avoid extra calls
-                suggest_key = f"{caption_input}|{','.join(sorted(chosen_upload_platforms))}"
-                if st.session_state.get("hashtags_key") != suggest_key:
-                    with st.spinner("🔄 Generating hashtag suggestions..."):
-                        suggested = generate_hashtags_for_caption(
-                            selected_caption=caption_input,
-                            product_name=product_name.strip(),
-                            platforms=chosen_upload_platforms,
-                            tone=tone,
-                            primary_language=primary_language,
-                            final_script=final_script_only,
-                            max_hashtags=10,
-                        )
-                    st.session_state["suggested_hashtags"] = suggested
-                    st.session_state["hashtags_key"] = suggest_key
-                hashtags_default = ", ".join(st.session_state.get("suggested_hashtags", []))
-                hashtags_input = st.text_input(
-                    "Hashtags (comma-separated)",
-                    value=hashtags_default,
-                    help="Edit or keep the suggested tags. Example: product, startup, ai",
-                )
-                col_u1, col_u2 = st.columns(2)
-                with col_u1:
-                    confirm_upload = st.button("Yes, upload now ⬆️", key="confirm_upload")
-                with col_u2:
-                    skip_upload = st.button("No, skip for now", key="skip_upload")
-
-                if confirm_upload and video_url:
-                    hashtags = [h.strip().lstrip("#") for h in hashtags_input.split(",") if h.strip()]
-                    with st.spinner("⬆️ Uploading to selected platforms..."):
-                        results = upload_to_platforms(video_url, caption_input, hashtags, chosen_upload_platforms)
-                    any_success = False
-                    for plat, res in results.items():
-                        if res.status == "success":
-                            any_success = True
-                            st.success(f"{plat}: Uploaded. {res.message}")
-                            if res.url:
-                                st.write(f"Post URL: {res.url}")
-                        else:
-                            st.error(f"{plat}: Failed to upload — {res.message}")
-                    if any_success:
-                        st.balloons()
-                if skip_upload:
-                    st.info("Upload skipped. You can download or share the video link above.")
+                st.session_state["latest_video_url"] = video_url
+                st.session_state["latest_title"] = product_name.strip() or "Reel"
+                # Post-video actions will be rendered below based on session state
             else:
                 st.info("✅ Video request accepted. The provider may be processing the render.")
                 if job_id:
@@ -298,3 +255,116 @@ if st.session_state.get("script_md"):
 
 st.markdown("---")
 st.caption("Made by Gagan Verma")
+
+# --- Persistent post-video actions (Upload + Save) using session state ---
+if st.session_state.get("latest_video_url"):
+    st.markdown("---")
+    st.subheader("Upload Confirmation")
+    st.info("Do you want to upload this video?")
+
+    video_url = st.session_state.get("latest_video_url")
+    latest_title = st.session_state.get("latest_title") or "Reel"
+
+    # Upload inputs
+    upload_platforms_default = [p for p in SUPPORTED_PLATFORMS]
+    chosen_upload_platforms = st.multiselect(
+        "Select platforms to upload",
+        SUPPORTED_PLATFORMS,
+        default=upload_platforms_default,
+        key="upload_platforms_selection",
+    )
+
+    # Use selected caption and auto-generate hashtags suggestions
+    default_caption = st.session_state.get("selected_caption") or f"{latest_title} — watch now!"
+    caption_input = st.text_area(
+        "Caption",
+        value=default_caption,
+        help="Choose from options above or edit manually.",
+        height=80,
+        key="caption_textarea",
+    )
+
+    # Suggest hashtags based on current caption and chosen platforms; cache to avoid extra calls
+    suggest_key = f"{caption_input}|{','.join(sorted(chosen_upload_platforms))}"
+    final_script_only = st.session_state.get("final_script_text", "")
+    tone_for_tags = 'Friendly'
+    primary_language_for_tags = 'English'
+    try:
+        tone_for_tags = tone  # from current UI selection if available
+        primary_language_for_tags = primary_language
+    except Exception:
+        pass
+    if st.session_state.get("hashtags_key") != suggest_key:
+        with st.spinner("🔄 Generating hashtag suggestions..."):
+            suggested = generate_hashtags_for_caption(
+                selected_caption=caption_input,
+                product_name=latest_title,
+                platforms=chosen_upload_platforms,
+                tone=tone_for_tags,
+                primary_language=primary_language_for_tags,
+                final_script=final_script_only,
+                max_hashtags=10,
+            )
+        st.session_state["suggested_hashtags"] = suggested
+        st.session_state["hashtags_key"] = suggest_key
+    hashtags_default = ", ".join(st.session_state.get("suggested_hashtags", []))
+    hashtags_input = st.text_input(
+        "Hashtags (comma-separated)",
+        value=hashtags_default,
+        help="Edit or keep the suggested tags. Example: product, startup, ai",
+        key="hashtags_input",
+    )
+    col_u1, col_u2 = st.columns(2)
+    with col_u1:
+        confirm_upload = st.button("Yes, upload now ⬆️", key="confirm_upload")
+    with col_u2:
+        skip_upload = st.button("No, skip for now", key="skip_upload")
+
+    if confirm_upload and video_url:
+        hashtags = [h.strip().lstrip("#") for h in hashtags_input.split(",") if h.strip()]
+        with st.spinner("⬆️ Uploading to selected platforms..."):
+            results = upload_to_platforms(video_url, caption_input, hashtags, chosen_upload_platforms)
+        any_success = False
+        for plat, res in results.items():
+            if res.status == "success":
+                any_success = True
+                st.success(f"{plat}: Uploaded. {res.message}")
+                if res.url:
+                    st.write(f"Post URL: {res.url}")
+            else:
+                st.error(f"{plat}: Failed to upload — {res.message}")
+        if any_success:
+            st.balloons()
+    if skip_upload:
+        st.info("Upload skipped. You can download or share the video link above.")
+
+    # Save to history section
+    st.markdown("---")
+    st.subheader("Save to History")
+    default_title = st.session_state.get("latest_title") or "Reel"
+    save_title = st.text_input("Title for history", value=default_title, key="save_history_title")
+    save_locally = st.checkbox("Save a local copy in versioned folder (reels/…)", value=True, key="save_history_local")
+    col_s1, col_s2 = st.columns(2)
+    with col_s1:
+        do_save = st.button("Save to history 💾", type="primary", key="save_history_btn")
+    with col_s2:
+        clear_latest = st.button("Clear current video", key="clear_latest_btn")
+
+    if do_save and video_url:
+        file_value = video_url
+        if save_locally:
+            rel = create_versioned_folder_and_download(save_title, video_url)
+            if rel:
+                file_value = rel
+                st.success(f"Saved locally to {rel}")
+            else:
+                st.warning("Couldn't save locally; keeping remote link.")
+        ok = save_reel_record(title=save_title, file_value=file_value)
+        if ok:
+            st.success("Saved to history (MongoDB). Open Reel History page from the sidebar.")
+        else:
+            st.warning("Could not save to database. Check MongoDB configuration.")
+    if clear_latest:
+        st.session_state["latest_video_url"] = None
+        st.session_state["latest_title"] = None
+        st.rerun()
