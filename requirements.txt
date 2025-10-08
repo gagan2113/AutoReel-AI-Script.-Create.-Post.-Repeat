@@ -3,3 +3,4 @@ requests
 langgraph
 python-dotenv
 pymongo
+pandas

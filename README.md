@@ -46,7 +46,7 @@ After a video is generated, the app asks: "Do you want to upload this video?" If
 ## 🏗️ Project Structure
 
 ```
-AutoReel AI/
+Reelora/
 ├── app.py                   # Main Streamlit application (UI + confirmation loop)
 ├── README.md                # Project documentation
 ├── requirements.txt         # Python dependencies
@@ -134,6 +134,31 @@ TWITTER_API_KEY=
 TWITTER_API_SECRET=
 TWITTER_ACCESS_TOKEN=
 TWITTER_ACCESS_SECRET=
+
+### Platform variables explained
+
+Each uploader reads credentials from environment variables. Provide at least the access tokens; base URLs and IDs help when integrating real APIs:
+
+- TikTok
+  - TIKTOK_ACCESS_TOKEN: OAuth access token
+  - TIKTOK_API_BASE_URL: Default https://open-api.tiktok.com
+  - TIKTOK_USER_ID: Your user ID if required by your integration
+- YouTube
+  - YOUTUBE_API_KEY or YOUTUBE_OAUTH_TOKEN
+  - YOUTUBE_API_BASE_URL: Default https://www.googleapis.com/youtube/v3
+  - YOUTUBE_CHANNEL_ID: Target channel ID if needed
+- LinkedIn
+  - LINKEDIN_ACCESS_TOKEN
+  - LINKEDIN_API_BASE_URL: Default https://api.linkedin.com/v2
+  - LINKEDIN_ORGANIZATION_ID: Company page URN or ID if posting as an organization
+- Facebook
+  - FACEBOOK_PAGE_ACCESS_TOKEN
+  - FACEBOOK_PAGE_ID
+  - FACEBOOK_GRAPH_API_BASE_URL: Default https://graph.facebook.com/v18.0
+- Twitter/X
+  - TWITTER_API_KEY, TWITTER_API_SECRET, TWITTER_ACCESS_TOKEN, TWITTER_ACCESS_SECRET
+  - TWITTER_API_BASE_URL: Default https://api.twitter.com/2
+  - TWITTER_USER_ID: Numeric user ID for endpoints that require it
 ```
 
 ---

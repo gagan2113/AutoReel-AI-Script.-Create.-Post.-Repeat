@@ -2,7 +2,7 @@ import streamlit as st
 from src.history import list_reels, save_reel_record, create_versioned_folder_and_download
 
 
-st.set_page_config(page_title="Reel History — AutoReel AI", page_icon="📜")
+st.set_page_config(page_title="Reel History — Reelora.AI", page_icon="📜")
 st.title("📜 Reel History")
 st.caption("Browse, preview, and save your generated reels. You can also add a record manually.")
 

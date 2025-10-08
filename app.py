@@ -5,8 +5,8 @@ from src.uploaders import upload_to_platforms, SUPPORTED_PLATFORMS
 from src.history import list_reels, save_reel_record, create_versioned_folder_and_download
 
 # --- Streamlit UI ---
-st.set_page_config(page_title="AutoReel AI", page_icon="📝")
-st.title("AutoReel AI is an intelligent content creation agent")
+st.set_page_config(page_title="Reelora.AI", page_icon="📝")
+st.title("Reelora.AI - writes, creates, and posts — on repeat.")
 st.write("Automatically writes scripts, generates videos, and posts them on social media — all in a continuous, trend-driven loop.")
 
 # Keep the current script across interactions
@@ -18,17 +18,9 @@ if "latest_title" not in st.session_state:
     st.session_state["latest_title"] = None
 
 """
-Sidebar: lightweight navigation to Reel History page
+Sidebar navigation is handled automatically by Streamlit multipage apps.
+We intentionally avoid adding a duplicate custom link to Reel History here.
 """
-with st.sidebar:
-    st.header("📜 Reel History")
-    try:
-        # Streamlit >= 1.30
-        st.page_link("pages/1_Reel_History.py", label="Open Reel History", icon="📜")
-    except Exception:
-        # Fallback: Multipage apps automatically show the page in the sidebar.
-        st.caption("Use the sidebar pages list to open Reel History.")
-    st.caption("Browse, preview, and manage reels on the history page.")
 
 
 with st.form("product_script_form"):
