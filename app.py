@@ -10,6 +10,7 @@ st.title("Reelora.AI - writes, creates, and posts — on repeat.")
 st.write("Automatically writes scripts, generates videos, and posts them on social media — all in a continuous, trend-driven loop.")
 
 # Keep the current script across interactions
+# Store the primary script payload (now JSON). Name kept generic for compatibility.
 if "script_md" not in st.session_state:
     st.session_state["script_md"] = ""
 if "latest_video_url" not in st.session_state:
@@ -100,7 +101,7 @@ if submitted:
                 platforms=platforms,
                 aspect_ratios_alts=aspect_ratios_alts,
             )
-        st.session_state["script_md"] = script
+        st.session_state["script_md"] = script  # now expected to be JSON array string
         # Prepare final script and caption options for human selection
         final_script_only = extract_final_script(script)
         st.session_state["final_script_text"] = final_script_only
@@ -122,7 +123,13 @@ if submitted:
 # If a script already exists (e.g., after regeneration), show it and the confirmation UI again
 if st.session_state.get("script_md"):
     st.subheader("📋 Generated Content")
-    st.markdown(st.session_state["script_md"]) 
+    # Try to render JSON nicely; fallback to markdown rendering.
+    try:
+        import json as _json
+        _parsed = _json.loads(st.session_state["script_md"])
+        st.json(_parsed)
+    except Exception:
+        st.markdown(st.session_state["script_md"]) 
     st.markdown("---")
     # Human-in-the-loop caption selection
     st.subheader("Choose a caption")

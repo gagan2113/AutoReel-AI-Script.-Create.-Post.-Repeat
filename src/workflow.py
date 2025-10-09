@@ -26,7 +26,6 @@ class ScriptState(TypedDict):
     # Outputs
     script_outline: str
     final_script: str
-    hashtags_and_captions: str
     error: str
 
 
@@ -48,25 +47,13 @@ def _generate_script_node(state: ScriptState) -> ScriptState:
     return state
 
 
-def _generate_hashtags_node(state: ScriptState) -> ScriptState:
-    if state.get("error"):
-        return state
-    try:
-        state["hashtags_and_captions"] = call_groq_api(hashtags_prompt(state))
-    except Exception as e:
-        state["error"] = f"Error generating hashtags: {e}"
-    return state
-
-
 def _compile_workflow():
     g = StateGraph(ScriptState)
     g.add_node("create_outline", _create_outline_node)
     g.add_node("generate_script", _generate_script_node)
-    g.add_node("generate_hashtags", _generate_hashtags_node)
     g.set_entry_point("create_outline")
     g.add_edge("create_outline", "generate_script")
-    g.add_edge("generate_script", "generate_hashtags")
-    g.add_edge("generate_hashtags", END)
+    g.add_edge("generate_script", END)
     return g.compile()
 
 
@@ -96,24 +83,14 @@ def generate_script(
         # Outputs
         "script_outline": "",
         "final_script": "",
-        "hashtags_and_captions": "",
         "error": "",
     }
     try:
         result = app.invoke(initial_state)
         if result.get("error"):
             return f"❌ {result['error']}"
-        response = f"""
-## 📝 Script Outline
-{result.get('script_outline', 'No outline generated')}
-
-## 🎬 Final Script
-{result.get('final_script', 'No script generated')}
-
-## 🏷️ Captions & Hashtags by Platform
-{result.get('hashtags_and_captions', 'No captions generated')}
-"""
-        return response.strip()
+        # Return the raw JSON scenes output from the script node.
+        return (result.get("final_script") or "").strip()
     except Exception as e:
         return f"❌ Workflow error: {e}"
 

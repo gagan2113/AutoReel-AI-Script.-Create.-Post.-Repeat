@@ -70,21 +70,31 @@ def script_prompt(state: Mapping[str, object]) -> str:
     outline = state.get("script_outline", "")
 
     return f"""
-Based on this outline, write a complete on-camera product script in {primary_language}.
+You are a senior short-form video scriptwriter.
+Convert the following outline into a scene-by-scene script in {primary_language}.
 
 Outline:
 {outline}
 
+Output format: STRICT JSON array (no backticks, no prose), where each scene is an object with exactly these fields:
+- "id": scene number starting at 1
+- "duration": integer duration in seconds
+- "visual_prompt": short description of visuals for the scene (concise; 8–14 words)
+- "narration_text": text for the voiceover
+
 Constraints:
-- Total speaking duration ≈ {duration_seconds} seconds at a natural pace.
+- Total speaking duration should be close to {duration_seconds} seconds.
 - Tone: {tone} (Allowed: {", ".join(ALLOWED_TONES)})
 - Target platforms: {platforms_str}
+- Keep narration tight and natural; avoid filler and long asides.
+- visual_prompt must not include camera jargon; describe what the viewer sees.
+- Do NOT include any keys beyond the four specified; do NOT include comments.
 
-Instructions:
-- Make it punchy and practical, optimized for short-form attention.
-- Include natural pause markers like (beat) where helpful.
-- Use inclusive, clear language. Avoid filler.
-- Do not include stage directions beyond brief parentheticals.
+Example of the required shape (values are illustrative only):
+[
+    {{"id": 1, "duration": 4, "visual_prompt": "Close-up of product on clean desk", "narration_text": "Meet ProductName—your daily boost."}},
+    {{"id": 2, "duration": 7, "visual_prompt": "Hand uses product; overlay highlights key benefit", "narration_text": "It saves you time with one tap."}}
+]
 """
 
 

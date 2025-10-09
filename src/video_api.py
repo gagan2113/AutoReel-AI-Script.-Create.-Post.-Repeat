@@ -121,25 +121,46 @@ def generate_video(
     }
 
 
-def extract_final_script(markdown_text: str) -> str:
+def extract_final_script(text: str) -> str:
     """
-    Extract the content under the "Final Script" section from our markdown.
-    If not found, return the whole text as a fallback.
+    Extract a usable narration script from the app output.
+
+    - If the input is a JSON array of scene objects with "narration_text",
+      join those lines into a single script (one per scene).
+    - Otherwise, fall back to extracting the content under the legacy
+      "## Final Script" markdown header.
+    - If neither format matches, return the raw input.
     """
-    if not markdown_text:
+    if not text:
         return ""
-    lines = markdown_text.splitlines()
+
+    s = text.strip()
+    # Try JSON scenes first
+    if s.startswith("["):
+        try:
+            data = json.loads(s)
+            if isinstance(data, list) and all(isinstance(x, dict) for x in data):
+                narr_lines: list[str] = []
+                for scene in data:
+                    nt = scene.get("narration_text") if isinstance(scene, dict) else None  # type: ignore[attr-defined]
+                    if isinstance(nt, str) and nt.strip():
+                        narr_lines.append(nt.strip())
+                if narr_lines:
+                    return "\n".join(narr_lines)
+        except Exception:
+            pass
+
+    # Legacy markdown fallback
+    lines = s.splitlines()
     collecting = False
     buf: list[str] = []
     for line in lines:
-        # Start when we hit the Final Script header (with or without emoji)
         if line.strip().lower().startswith("##") and "final script" in line.strip().lower():
             collecting = True
             continue
-        # Stop if we reach the next header at the same level
         if collecting and line.strip().startswith("## "):
             break
         if collecting:
             buf.append(line)
-    text = "\n".join(buf).strip()
-    return text if text else markdown_text.strip()
+    text2 = "\n".join(buf).strip()
+    return text2 if text2 else s
