@@ -1,36 +1,6 @@
-"""
-Video generation API (deprecated).
-
-Note: The legacy video generation function has been deprecated in favor of the
-Google Veo 3 per-scene generator. Use the Streamlit page "Video Clips Veo3" or
-the console script to generate clips. This module retains only the
-`extract_final_script` utility for compatibility with tests and existing code.
-"""
 from __future__ import annotations
 
-from typing import List, Dict, Any
 import json
-
-
-def generate_video(
-    *,
-    script_text: str,
-    product_name: str,
-    platforms: List[str],
-    aspect_ratios: List[str],
-    duration_seconds: int,
-    voice: str | None = None,
-    music_style: str | None = None,
-) -> Dict[str, Any]:
-    """Deprecated placeholder.
-
-    Returns an error prompting users to use the Veo 3 flow instead of the legacy
-    monolithic video generator.
-    """
-    return {
-        "status": "error",
-        "message": "Legacy video generator is deprecated. Use the Veo 3 per-scene page to create clips.",
-    }
 
 
 def extract_final_script(text: str) -> str:
@@ -76,3 +46,6 @@ def extract_final_script(text: str) -> str:
             buf.append(line)
     text2 = "\n".join(buf).strip()
     return text2 if text2 else s
+
+
+__all__ = ["extract_final_script"]

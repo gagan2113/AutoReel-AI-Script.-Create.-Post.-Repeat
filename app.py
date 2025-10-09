@@ -1,6 +1,8 @@
 import streamlit as st
 from src.workflow import generate_script, generate_caption_options, generate_hashtags_for_caption
-from src.video_api import generate_video, extract_final_script
+from src.script_utils import extract_final_script
+from src.tts import OPENAI_VOICES, ensure_output_dir, generate_scene_voiceovers
+from src.history import get_reels_dir
 from src.uploaders import upload_to_platforms, SUPPORTED_PLATFORMS
 from src.history import list_reels, save_reel_record, create_versioned_folder_and_download
 
@@ -189,36 +191,7 @@ if st.session_state.get("script_md"):
         regenerate_b = st.button("No, regenerate the script 🔁", key="regenerate_again")
 
     if proceed_b:
-        final_script_only = extract_final_script(st.session_state.get("script_md", ""))
-        with st.spinner("🎬 Generating video using the confirmed script..."):
-            result = generate_video(
-                script_text=final_script_only,
-                product_name=product_name.strip(),
-                platforms=platforms,
-                aspect_ratios=aspect_ratios_alts,
-                duration_seconds=int(duration_seconds),
-            )
-        if result.get("status") == "success":
-            video_url = result.get("video_url")
-            job_id = result.get("job_id")
-            msg = result.get("message", "")
-            if video_url:
-                st.success(f"✅ Video generated! {msg}")
-                st.video(video_url)
-                st.write(f"Job ID: {job_id}")
-                st.write(f"Direct link: {video_url}")
-                st.session_state["latest_video_url"] = video_url
-                st.session_state["latest_title"] = product_name.strip() or "Reel"
-                # Post-video actions will be rendered below based on session state
-            else:
-                st.info("✅ Video request accepted. The provider may be processing the render.")
-                if job_id:
-                    st.write(f"Job ID: {job_id}")
-                if msg:
-                    st.caption(msg)
-                # No direct video URL yet, so we cannot upload at this time.
-        else:
-            st.error(result.get("message", "Failed to generate video."))
+        st.info("The legacy one-shot video generator is deprecated. Use the 'Video Clips Veo3' page to generate per-scene clips and merge later.")
 
     if regenerate_b:
         with st.spinner("🔄 Regenerating product script & captions..."):
@@ -254,6 +227,61 @@ if st.session_state.get("script_md"):
 
 st.markdown("---")
 st.caption("Made by Gagan Verma")
+
+# --- TTS-only generation section ---
+if st.session_state.get("script_md"):
+    st.markdown("---")
+    st.subheader("Voiceover (TTS) Only")
+    st.caption("Generate MP3 voiceovers per scene. This won't create or merge video.")
+
+    # Voice selection
+    voice = st.selectbox("Select voice", OPENAI_VOICES, index=0, key="tts_voice_select")
+
+    # Parse scenes JSON from script_md
+    import json as _json
+    scenes_data = []
+    try:
+        parsed = _json.loads(st.session_state["script_md"])  # expected list of scene dicts
+        if isinstance(parsed, list):
+            # filter to dicts having id + narration_text
+            scenes_data = [s for s in parsed if isinstance(s, dict) and "narration_text" in s]
+    except Exception:
+        scenes_data = []
+
+    if not scenes_data:
+        st.warning("No scenes found in the current script JSON. Generate or fix the script first.")
+    else:
+        # Output directory selection: create a new timestamped folder under reels
+        reels_dir = get_reels_dir()
+        default_folder = ensure_output_dir(reels_dir, st.session_state.get("latest_title") or "voiceover")
+        # Let users reuse the same folder across reruns in this session
+        if "tts_out_dir" not in st.session_state:
+            st.session_state["tts_out_dir"] = str(default_folder)
+        out_dir_str = st.text_input("Output folder (created if not exists)", value=st.session_state["tts_out_dir"], key="tts_out_dir_input")
+        st.session_state["tts_out_dir"] = out_dir_str
+
+        generate_tts_btn = st.button("Generate per-scene audio 🔊", type="primary", key="btn_generate_tts")
+        if generate_tts_btn:
+            from pathlib import Path as _Path
+            out_dir = _Path(out_dir_str)
+            out_dir.mkdir(parents=True, exist_ok=True)
+            # Show progress per scene
+            created_files = []
+            try:
+                for scene in scenes_data:
+                    sid = scene.get("id")
+                    st.write(f"Generating audio for scene {sid}…")
+                    # Generate a single scene at a time to provide granular progress
+                    cf = generate_scene_voiceovers([scene], out_dir=out_dir, voice=voice)
+                    created_files.extend(cf)
+                if created_files:
+                    st.success(f"Generated {len(created_files)} audio files in {out_dir.as_posix()}")
+                    for p in created_files:
+                        st.audio(str(p))
+                else:
+                    st.warning("No audio files were created. Check the scenes and OpenAI settings.")
+            except Exception as e:
+                st.error(f"TTS generation failed: {e}")
 
 # --- Persistent post-video actions (Upload + Save) using session state ---
 if st.session_state.get("latest_video_url"):

@@ -4,3 +4,4 @@ langgraph
 python-dotenv
 pymongo
 pandas
+openai>=1.30.0
